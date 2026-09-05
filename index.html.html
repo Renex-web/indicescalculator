@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stock Indices Position Size Calculator</title>
+<style>
+  :root {
+    --bg:#0b1020; --bg2:#111a2c; --bg3:#0c1422;
+    --panel:#121a2d; --panel2:#182238; --input:#0d1527; --text:#eef2ff;
+    --label:#d9e1f3; --muted:#9da9c3; --accent:#5ee0a0; --accent2:#67a8ff;
+    --danger:#ff7b7b; --border:#2a3653; --button-secondary:#27344f;
+    --good-text:#caffdf; --warning-text:#ffd1d1; --shadow:rgba(0,0,0,.22);
+  }
+  body.light {
+    --bg:#f5f7fb; --bg2:#ffffff; --bg3:#eef2f7;
+    --panel:#ffffff; --panel2:#f3f6fb; --input:#ffffff; --text:#111827;
+    --label:#374151; --muted:#667085; --accent:#0f9f63; --accent2:#2563eb;
+    --danger:#dc2626; --border:#d7deea; --button-secondary:#e9eef7;
+    --good-text:#12653f; --warning-text:#9b1c1c; --shadow:rgba(16,24,40,.10);
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    background:linear-gradient(135deg,var(--bg),var(--bg2) 55%,var(--bg3)); color:var(--text);
+    min-height:100vh; transition:background .25s ease,color .25s ease;
+  }
+  .wrap { max-width:1100px; margin:0 auto; padding:24px 18px 50px; }
+  .topbar { display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:4px; }
+  h1 { margin:0 0 8px; font-size:clamp(28px,5vw,44px); }
+  .subtitle { color:var(--muted); margin-bottom:24px; line-height:1.55; }
+  .theme-toggle {
+    display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel);
+    color:var(--text); border-radius:999px; padding:9px 13px; cursor:pointer; font-weight:700;
+    box-shadow:0 8px 24px var(--shadow); white-space:nowrap;
+  }
+  .grid { display:grid; grid-template-columns:1.1fr .9fr; gap:20px; }
+  @media (max-width:850px){ .grid{grid-template-columns:1fr;} .topbar{align-items:flex-start;} }
+  .card {
+    background:var(--panel); border:1px solid var(--border); border-radius:18px;
+    padding:20px; box-shadow:0 20px 50px var(--shadow); transition:background .25s ease,border .25s ease;
+  }
+  .card h2 { margin:0 0 16px; font-size:20px; }
+  .fields { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:560px){ .fields{grid-template-columns:1fr;} .fxrow{flex-direction:column;align-items:stretch;} }
+  label { display:block; color:var(--label); font-size:13px; margin-bottom:6px; }
+  input, select {
+    width:100%; padding:12px 13px; border-radius:11px; border:1px solid var(--border);
+    background:var(--input); color:var(--text); outline:none; font-size:15px;
+  }
+  input:focus, select:focus { border-color:var(--accent2); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent2) 14%,transparent); }
+  input:disabled { opacity:.72; cursor:not-allowed; }
+  .full { grid-column:1/-1; }
+  .hint { color:var(--muted); font-size:12px; margin-top:6px; line-height:1.45; }
+  .fxrow { display:flex; gap:10px; align-items:end; }
+  .fxrow > div { flex:1; }
+  .btn {
+    border:0; border-radius:11px; padding:12px 14px; font-weight:700; cursor:pointer;
+    background:var(--accent2); color:white; white-space:nowrap;
+  }
+  .btn.secondary { background:var(--button-secondary); color:var(--text); border:1px solid var(--border); }
+  .btn:disabled { opacity:.6; cursor:not-allowed; }
+  .fx-status { margin-top:8px; display:flex; align-items:center; gap:7px; min-height:18px; color:var(--muted); font-size:12px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); flex:0 0 auto; }
+  .dot.live { background:var(--accent); box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 12%,transparent); }
+  .dot.error { background:var(--danger); }
+  .result-main { font-size:46px; font-weight:800; color:var(--accent); margin:2px 0 8px; letter-spacing:-1px; }
+  .metric { display:flex; justify-content:space-between; gap:15px; padding:11px 0; border-bottom:1px solid var(--border); }
+  .metric:last-child { border-bottom:0; }
+  .metric span:first-child { color:var(--muted); }
+  .warning {
+    margin-top:14px; padding:12px 14px; border-radius:12px;
+    background:color-mix(in srgb,var(--danger) 9%,transparent);
+    border:1px solid color-mix(in srgb,var(--danger) 35%,transparent);
+    color:var(--warning-text); line-height:1.45; font-size:13px;
+  }
+  .good {
+    margin-top:14px; padding:12px 14px; border-radius:12px;
+    background:color-mix(in srgb,var(--accent) 9%,transparent);
+    border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);
+    color:var(--good-text); line-height:1.45; font-size:13px;
+  }
+  .preset { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px; }
+  @media(max-width:640px){ .preset{grid-template-columns:repeat(2,1fr);} }
+  .preset button { background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px; padding:9px; cursor:pointer; }
+  .formula { background:var(--input); padding:13px; border-radius:12px; color:var(--label); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; line-height:1.6; overflow:auto; border:1px solid var(--border); }
+  footer { color:var(--muted); margin-top:18px; font-size:12px; line-height:1.5; }
+</style>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235ee0a0'/%3E%3Crect x='14' y='10' width='36' height='44' rx='5' fill='%230b1020'/%3E%3Crect x='19' y='16' width='26' height='8' rx='2' fill='%23eef2ff'/%3E%3Cg fill='%235ee0a0'%3E%3Crect x='19' y='29' width='6' height='6'/%3E%3Crect x='29' y='29' width='6' height='6'/%3E%3Crect x='39' y='29' width='6' height='6'/%3E%3Crect x='19' y='39' width='6' height='6'/%3E%3Crect x='29' y='39' width='6' height='6'/%3E%3Crect x='39' y='39' width='6' height='6'/%3E%3C/g%3E%3C/svg%3E">
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1>Stock Indices Position Size Calculator</h1>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">☀️ White theme</button>
+  </div>
+
+  <div class="subtitle">
+    Calculate a risk-based CFD/index position size using account size, risk %, stop distance,
+    contract value per point, and a live exchange rate from the instrument currency into your account currency.
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Trade Inputs</h2>
+      <div class="fields">
+        <div>
+          <label>Account currency</label>
+          <select id="accountCurrency">
+            <option value="USD" selected>USD</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+            <option value="JPY">JPY</option>
+            <option value="AUD">AUD</option>
+            <option value="CAD">CAD</option>
+            <option value="CHF">CHF</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Account size</label>
+          <input id="accountSize" type="number" value="10000" min="0" step="0.01">
+        </div>
+
+        <div>
+          <label>Risk percentage (%)</label>
+          <input id="riskPct" type="number" value="1" min="0" step="0.01">
+        </div>
+
+        <div>
+          <label>Stop distance (index points)</label>
+          <input id="stopPoints" type="number" value="300" min="0" step="0.01">
+        </div>
+
+        <div>
+          <label>Instrument / index</label>
+          <select id="instrument">
+            <option value="JP225" selected>JP225 / Nikkei 225</option>
+            <option value="US30">US30 / Dow Jones</option>
+            <option value="NAS100">NAS100 / Nasdaq 100</option>
+            <option value="SPX500">SPX500 / S&amp;P 500</option>
+            <option value="GER40">GER40 / DAX</option>
+            <option value="UK100">UK100 / FTSE 100</option>
+            <option value="CUSTOM">Custom</option>
+          </select>
+        </div>
+
+        <div>
+          <label>P&amp;L / contract currency</label>
+          <select id="instrumentCurrency">
+            <option value="JPY" selected>JPY</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+            <option value="AUD">AUD</option>
+            <option value="CAD">CAD</option>
+            <option value="CHF">CHF</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Contract value per 1 point, per 1 lot</label>
+          <input id="contractValue" type="number" value="100" min="0" step="0.0001">
+          <div class="hint">Example: JP225 = 100 JPY per point per 1 lot, if that is your broker's specification.</div>
+        </div>
+
+        <div>
+          <label>Minimum lot</label>
+          <input id="minLot" type="number" value="0.1" min="0" step="0.001">
+        </div>
+
+        <div>
+          <label>Lot step</label>
+          <input id="lotStep" type="number" value="0.1" min="0.000001" step="0.001">
+          <div class="hint">The calculator rounds DOWN to avoid exceeding your chosen risk.</div>
+        </div>
+
+        <div class="full">
+          <label>Exchange rate: 1 instrument-currency unit = how many account-currency units?</label>
+          <div class="fxrow">
+            <div><input id="fxRate" type="number" value="0.00641781" min="0" step="0.00000001"></div>
+            <button class="btn secondary" id="refreshFx" type="button">↻ Refresh live rate</button>
+          </div>
+          <div class="fx-status"><span class="dot" id="fxDot"></span><span id="fxStatus">Live FX will update automatically.</span></div>
+          <div class="hint" id="fxHint">You can still type a manual exchange rate if needed.</div>
+        </div>
+      </div>
+
+      <div class="preset">
+        <button data-risk="0.25">Risk 0.25%</button>
+        <button data-risk="0.5">Risk 0.5%</button>
+        <button data-risk="1">Risk 1%</button>
+        <button data-risk="2">Risk 2%</button>
+      </div>
+    </section>
+
+    <aside class="card">
+      <h2>Position Size</h2>
+      <div class="result-main" id="lotResult">0.50 lots</div>
+
+      <div class="metric"><span>Risk amount</span><strong id="riskAmount">$100.00</strong></div>
+      <div class="metric"><span>Value per point / 1 lot</span><strong id="pointValue">$0.64</strong></div>
+      <div class="metric"><span>Loss at stop / 1 lot</span><strong id="lossOneLot">$192.53</strong></div>
+      <div class="metric"><span>Raw calculated lots</span><strong id="rawLots">0.5194</strong></div>
+      <div class="metric"><span>Rounded trade size</span><strong id="roundedLots">0.50</strong></div>
+      <div class="metric"><span>Estimated actual risk</span><strong id="actualRisk">$96.27</strong></div>
+      <div class="metric"><span>Actual risk %</span><strong id="actualRiskPct">0.96%</strong></div>
+
+      <div class="good" id="statusBox">
+        Position is rounded down to the broker lot step so the estimated loss at the stop does not exceed your selected risk.
+      </div>
+
+      <div class="warning">
+        Verify the contract specification, point value, minimum lot and lot step with your broker. Index CFD contract sizes differ between brokers.
+        Live exchange rates can differ slightly from your broker's conversion rate.
+      </div>
+
+      <h2 style="margin-top:20px">Formula</h2>
+      <div class="formula">
+Risk Amount = Account Size × Risk %<br>
+Point Value = Contract Value × FX Rate<br>
+Loss per 1 Lot = Stop Points × Point Value<br>
+Raw Lots = Risk Amount ÷ Loss per 1 Lot<br>
+Trade Lots = round DOWN to broker lot step
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    Educational/risk-management calculator only. It does not account for spread, slippage, commissions,
+    financing, gaps, broker-specific tick rules, or guaranteed-stop charges.
+  </footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const presets = {
+  JP225: { currency:"JPY", contractValue:100, minLot:0.1, lotStep:0.1 },
+  US30:  { currency:"USD", contractValue:1, minLot:0.1, lotStep:0.1 },
+  NAS100:{ currency:"USD", contractValue:1, minLot:0.1, lotStep:0.1 },
+  SPX500:{ currency:"USD", contractValue:1, minLot:0.1, lotStep:0.1 },
+  GER40: { currency:"EUR", contractValue:1, minLot:0.1, lotStep:0.1 },
+  UK100: { currency:"GBP", contractValue:1, minLot:0.1, lotStep:0.1 }
+};
+
+let fxRequestId = 0;
+
+function money(n, cur){
+  try { return new Intl.NumberFormat(undefined,{style:"currency",currency:cur,maximumFractionDigits:2}).format(n); }
+  catch { return n.toFixed(2)+" "+cur; }
+}
+
+function decimals(step){
+  const s = String(step);
+  if(s.includes("e-")) return parseInt(s.split("e-")[1],10);
+  return (s.split(".")[1] || "").length;
+}
+
+function floorToStep(value, step){
+  if(!isFinite(value) || !isFinite(step) || step <= 0) return 0;
+  const d = Math.min(8, decimals(step));
+  const factor = Math.pow(10,d);
+  const intStep = Math.round(step*factor);
+  return Math.floor((value*factor + 1e-9)/intStep)*intStep/factor;
+}
+
+function setFxStatus(message, type=""){
+  $("fxStatus").textContent = message;
+  $("fxDot").className = "dot" + (type ? " "+type : "");
+}
+
+function calculate(){
+  const accountCur = $("accountCurrency").value;
+  const instrCur = $("instrumentCurrency").value;
+  const accountSize = parseFloat($("accountSize").value) || 0;
+  const riskPct = parseFloat($("riskPct").value) || 0;
+  const stop = parseFloat($("stopPoints").value) || 0;
+  const contract = parseFloat($("contractValue").value) || 0;
+  const minLot = parseFloat($("minLot").value) || 0;
+  const step = parseFloat($("lotStep").value) || 0.01;
+
+  let fx = parseFloat($("fxRate").value) || 0;
+  if(instrCur === accountCur){
+    fx = 1;
+    $("fxRate").value = "1";
+    $("fxRate").disabled = true;
+  } else {
+    $("fxRate").disabled = false;
+  }
+
+  $("fxHint").textContent = `1 ${instrCur} = ${fx || 0} ${accountCur}. Live rate refreshes automatically when either currency changes.`;
+
+  const riskAmount = accountSize * (riskPct/100);
+  const pointValue = contract * fx;
+  const lossOneLot = stop * pointValue;
+  const rawLots = lossOneLot > 0 ? riskAmount/lossOneLot : 0;
+  let lots = floorToStep(rawLots, step);
+
+  if(lots < minLot) lots = 0;
+
+  const actualRisk = lots * lossOneLot;
+  const actualPct = accountSize > 0 ? actualRisk/accountSize*100 : 0;
+
+  $("lotResult").textContent = lots.toFixed(Math.max(2,decimals(step))) + " lots";
+  $("riskAmount").textContent = money(riskAmount,accountCur);
+  $("pointValue").textContent = money(pointValue,accountCur);
+  $("lossOneLot").textContent = money(lossOneLot,accountCur);
+  $("rawLots").textContent = rawLots.toFixed(4);
+  $("roundedLots").textContent = lots.toFixed(Math.max(2,decimals(step)));
+  $("actualRisk").textContent = money(actualRisk,accountCur);
+  $("actualRiskPct").textContent = actualPct.toFixed(2)+"%";
+
+  const status = $("statusBox");
+  if(rawLots > 0 && rawLots < minLot){
+    status.textContent = `Calculated size is ${rawLots.toFixed(4)} lots, below the broker minimum of ${minLot}. The calculator therefore shows 0 lots.`;
+  } else {
+    status.textContent = "Position is rounded down to the broker lot step so the estimated loss at the stop does not exceed your selected risk.";
+  }
+}
+
+async function fetchWithTimeout(url, ms=8000){
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchLiveFx(){
+  const from = $("instrumentCurrency").value;
+  const to = $("accountCurrency").value;
+  const requestId = ++fxRequestId;
+
+  if(from === to){
+    $("fxRate").value = "1";
+    $("fxRate").disabled = true;
+    setFxStatus(`Live: 1 ${from} = 1 ${to}`, "live");
+    calculate();
+    return;
+  }
+
+  $("fxRate").disabled = false;
+  $("refreshFx").disabled = true;
+  setFxStatus(`Updating live ${from}/${to} rate...`);
+
+  try {
+    let rate = null;
+    let source = "";
+
+    // Try several public FX sources. This makes the calculator work even
+    // when one provider is temporarily unavailable or blocks a browser request.
+    const providers = [
+      async () => {
+        const d = await fetchWithTimeout(`https://open.er-api.com/v6/latest/${encodeURIComponent(from)}`);
+        return d && d.result === "success" && d.rates ? Number(d.rates[to]) : null;
+      },
+      async () => {
+        const d = await fetchWithTimeout(`https://api.frankfurter.app/latest?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+        return d && d.rates ? Number(d.rates[to]) : null;
+      }
+    ];
+
+    for(let i=0; i<providers.length && !rate; i++){
+      try {
+        const r = await providers[i]();
+        if(Number.isFinite(r) && r > 0){
+          rate = r;
+          source = i === 0 ? "ExchangeRate API" : "Frankfurter";
+        }
+      } catch(e) {}
+    }
+
+    if(requestId !== fxRequestId) return;
+    if(!rate) throw new Error("No live rate returned");
+
+    $("fxRate").value = String(rate);
+    setFxStatus(`Live: 1 ${from} = ${rate.toLocaleString(undefined,{maximumSignificantDigits:10})} ${to} • ${source}`, "live");
+    calculate();
+  } catch(err){
+    if(requestId !== fxRequestId) return;
+    setFxStatus(`Could not update live FX. Your last/manual rate is being used. Click Refresh to try again.`, "error");
+    calculate();
+  } finally {
+    if(requestId === fxRequestId) $("refreshFx").disabled = false;
+  }
+}
+
+function applyTheme(theme){
+  const light = theme === "light";
+  document.body.classList.toggle("light", light);
+  $("themeToggle").textContent = light ? "🌙 Dark theme" : "☀️ White theme";
+  localStorage.setItem("positionCalculatorTheme", light ? "light" : "dark");
+}
+
+$("themeToggle").addEventListener("click",()=>{
+  applyTheme(document.body.classList.contains("light") ? "dark" : "light");
+});
+
+$("instrument").addEventListener("change", e=>{
+  const p = presets[e.target.value];
+  if(p){
+    $("instrumentCurrency").value = p.currency;
+    $("contractValue").value = p.contractValue;
+    $("minLot").value = p.minLot;
+    $("lotStep").value = p.lotStep;
+  }
+  calculate();
+  fetchLiveFx();
+});
+
+$("accountCurrency").addEventListener("change", fetchLiveFx);
+$("instrumentCurrency").addEventListener("change", fetchLiveFx);
+$("refreshFx").addEventListener("click", fetchLiveFx);
+
+// Normal calculator inputs recalculate immediately. Manual FX entry remains supported.
+["accountSize","riskPct","stopPoints","contractValue","minLot","lotStep","fxRate"].forEach(id=>{
+  $(id).addEventListener("input", calculate);
+});
+
+document.querySelectorAll("[data-risk]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    $("riskPct").value = btn.dataset.risk;
+    calculate();
+  });
+});
+
+const savedTheme = localStorage.getItem("positionCalculatorTheme");
+applyTheme(savedTheme === "light" ? "light" : "dark");
+calculate();
+fetchLiveFx();
+</script>
+</body>
+</html>
